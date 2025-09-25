@@ -1,0 +1,155 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Industrial automation color palette */
+    --background: 210 25% 98%;
+    --foreground: 215 25% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 15%;
+
+    /* Industrial blue primary */
+    --primary: 210 60% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Soft technical gray */
+    --secondary: 210 15% 94%;
+    --secondary-foreground: 215 25% 25%;
+
+    --muted: 210 15% 96%;
+    --muted-foreground: 215 15% 50%;
+
+    /* Technical accent */
+    --accent: 210 15% 92%;
+    --accent-foreground: 215 25% 20%;
+
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 20% 88%;
+    --input: 210 20% 92%;
+    --ring: 210 60% 45%;
+
+    /* Industrial status colors */
+    --success: 142 70% 45%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 38 85% 55%;
+    --warning-foreground: 0 0% 100%;
+    
+    --info: 210 60% 50%;
+    --info-foreground: 0 0% 100%;
+
+    /* Industrial gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(210 60% 45%), hsl(210 70% 55%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(210 15% 97%));
+    --gradient-status: linear-gradient(90deg, hsl(142 70% 45%), hsl(142 60% 50%));
+
+    /* Shadows */
+    --shadow-card: 0 2px 8px -2px hsl(210 15% 25% / 0.1);
+    --shadow-elevated: 0 8px 24px -4px hsl(210 15% 25% / 0.15);
+
+    --radius: 0.75rem;
+
+    /* Sidebar industrial theme */
+    --sidebar-background: 210 20% 96%;
+    --sidebar-foreground: 215 25% 20%;
+    --sidebar-primary: 210 60% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 15% 92%;
+    --sidebar-accent-foreground: 215 25% 25%;
+    --sidebar-border: 210 20% 88%;
+    --sidebar-ring: 210 60% 45%;
+  }
+
+  .dark {
+    /* Dark mode - still industrial themed */
+    --background: 215 25% 8%;
+    --foreground: 210 15% 90%;
+
+    --card: 215 25% 10%;
+    --card-foreground: 210 15% 90%;
+
+    --popover: 215 25% 10%;
+    --popover-foreground: 210 15% 90%;
+
+    --primary: 210 70% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 215 25% 15%;
+    --secondary-foreground: 210 15% 85%;
+
+    --muted: 215 25% 12%;
+    --muted-foreground: 215 15% 60%;
+
+    --accent: 215 25% 15%;
+    --accent-foreground: 210 15% 85%;
+
+    --destructive: 0 75% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 215 25% 18%;
+    --input: 215 25% 18%;
+    --ring: 210 70% 55%;
+
+    --success: 142 70% 50%;
+    --warning: 38 85% 60%;
+    --info: 210 70% 60%;
+
+    --sidebar-background: 215 30% 6%;
+    --sidebar-foreground: 210 15% 85%;
+    --sidebar-primary: 210 70% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 25% 12%;
+    --sidebar-accent-foreground: 210 15% 80%;
+    --sidebar-border: 215 25% 15%;
+    --sidebar-ring: 210 70% 55%;
+  }
+}
+
+/* Industrial component styles */
+@layer components {
+  .status-indicator {
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium;
+  }
+  
+  .status-indicator.running {
+    @apply bg-success/10 text-success border border-success/20;
+  }
+  
+  .status-indicator.stopped {
+    @apply bg-muted text-muted-foreground border border-border;
+  }
+  
+  .status-indicator.warning {
+    @apply bg-warning/10 text-warning border border-warning/20;
+  }
+  
+  .industrial-card {
+    @apply bg-card border border-border rounded-xl shadow-[var(--shadow-card)] transition-all duration-200;
+  }
+  
+  .industrial-card:hover {
+    @apply shadow-[var(--shadow-elevated)];
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
