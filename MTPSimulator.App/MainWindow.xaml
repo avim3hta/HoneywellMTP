@@ -6,7 +6,7 @@
         mc:Ignorable="d"
         Title="MTP OPC UA Simulator" Height="720" Width="1080" MinHeight="560" MinWidth="960">
     <DockPanel>
-        <StackPanel Orientation="Horizontal" DockPanel.Dock="Top" Margin="8" Spacing="8">
+        <StackPanel Orientation="Horizontal" DockPanel.Dock="Top" Margin="8">
             <Button x:Name="BtnLoadMtp" Content="Load MTP..." Width="120" Click="BtnLoadMtp_Click" />
             <TextBox x:Name="TxtEndpoint" Width="360" VerticalAlignment="Center" Text="127.0.0.1:4840" />
             <Button x:Name="BtnStart" Content="Start Server" Width="120" Click="BtnStart_Click" />

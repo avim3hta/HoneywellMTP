@@ -59,11 +59,11 @@ namespace MTPSimulator.App
             }
         }
 
-        private async void BtnStop_Click(object sender, RoutedEventArgs e)
+        private void BtnStop_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                await _server.StopAsync();
+                _server.Stop();
                 TxtStatus.Text = "Server stopped";
             }
             catch (Exception ex)

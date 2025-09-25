@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Threading.Tasks;
 using MTPSimulator.App.Models;
 using MTPSimulator.App.Utils;
+using System.Net;
 using Opc.Ua;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server;
@@ -39,7 +40,7 @@ namespace MTPSimulator.App.Core
             {
                 ApplicationName = "MTP OPC UA Simulator",
                 ApplicationType = ApplicationType.Server,
-                ApplicationUri = $"urn:{Utils.GetHostName()}:MTPSimulator",
+                ApplicationUri = $"urn:{Dns.GetHostName()}:MTPSimulator",
                 ProductUri = "urn:mtp-simulator",
                 ServerConfiguration = new ServerConfiguration
                 {
@@ -92,13 +93,13 @@ namespace MTPSimulator.App.Core
             _simulation.Start();
         }
 
-        public async Task StopAsync()
+        public void Stop()
         {
             _simulation.Stop();
 
             if (_server != null)
             {
-                try { await _server.StopAsync().ConfigureAwait(false); } catch { }
+                try { _server.Stop(); } catch { }
                 _server = null;
             }
         }
