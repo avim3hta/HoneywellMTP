@@ -197,6 +197,13 @@ namespace MTPSimulator.App.Core
 				return false;
 			}
 		}
+
+		public bool TryReadValue(string nodeId, out object? value)
+		{
+			value = null;
+			if (_nodeManager == null) return false;
+			return _nodeManager.TryGetValue(nodeId, out value);
+		}
 	}
 
 	internal sealed class SimulatorServer : StandardServer
@@ -604,6 +611,26 @@ namespace MTPSimulator.App.Core
 				Console.WriteLine($"SimulatorNodeManager: WARNING - NodeId '{nodeId}' not found in variables dictionary");
 				Console.WriteLine($"SimulatorNodeManager: Available NodeIds: {string.Join(", ", _variables.Keys)}");
 			}
+		}
+
+		public bool TryGetValue(string nodeId, out object? value)
+		{
+			value = null;
+			// normalize: NS2|String|R0001 -> ns=2;s=R0001 ; plain R0001 -> ns=2;s=R0001
+			string key = nodeId?.Trim() ?? string.Empty;
+			if (key.StartsWith("NS", StringComparison.OrdinalIgnoreCase))
+			{
+				var m = System.Text.RegularExpressions.Regex.Match(key, "^NS(\\d+)\\|[^|]*\\|(.*)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+				if (m.Success) key = $"ns={m.Groups[1].Value};s={m.Groups[2].Value}";
+			}
+			if (!key.StartsWith("ns=", StringComparison.OrdinalIgnoreCase)) key = $"ns=2;s={key}";
+
+			if (_variables.TryGetValue(key, out var varState))
+			{
+				value = varState.Value;
+				return true;
+			}
+			return false;
 		}
 
 		public void RefreshAddressSpace()

@@ -38,8 +38,20 @@ export default function NodeBrowser() {
   const nodeIndex = useMemo(() => new Map<string, TreeNode>(), [nodes]);
   useEffect(() => {
     nodeIndex.clear();
+    const normId = (id: string): string => {
+      if (!id) return id;
+      let s = id.trim();
+      // Convert UaExpert style: NS2|String|R0002 -> ns=2;s=R0002
+      if (/^NS\d+\|/i.test(s)) {
+        const m = /^NS(\d+)\|[^|]*\|(.*)$/i.exec(s);
+        if (m) s = `ns=${m[1]};s=${m[2]}`;
+      }
+      if (!/^ns=/i.test(s)) s = `ns=2;s=${s}`;
+      return s;
+    };
     const walk = (n: TreeNode) => {
       nodeIndex.set(n.nodeId, n);
+      nodeIndex.set(normId(n.nodeId), n);
       n.children?.forEach(walk);
     };
     nodes.forEach(walk);
@@ -51,6 +63,16 @@ export default function NodeBrowser() {
     const fetchVariables = async () => {
       const res = await fetch(`${REST_BASE}/api/variables`);
       const vars: { nodeId: string; displayName: string; dataType: string; value: any, access?: number, description?: string }[] = await res.json();
+      const normId = (id: string) => {
+        if (!id) return id;
+        let s = id.trim();
+        if (/^NS\d+\|/i.test(s)) {
+          const m = /^NS(\d+)\|[^|]*\|(.*)$/i.exec(s);
+          if (m) s = `ns=${m[1]};s=${m[2]}`;
+        }
+        if (!/^ns=/i.test(s)) s = `ns=2;s=${s}`;
+        return s;
+      };
       // flat list -> simple tree (group by first path segment)
       const tree: TreeNode[] = [
         {
@@ -63,7 +85,7 @@ export default function NodeBrowser() {
           children: vars.map((v, i) => ({
             id: `${i}`,
             name: v.displayName,
-            nodeId: v.nodeId,
+            nodeId: normId(v.nodeId),
             dataType: v.dataType,
             value: v.value ?? ""
           }))
@@ -78,21 +100,33 @@ export default function NodeBrowser() {
         .withAutomaticReconnect()
         .build();
       await connection.start();
+      const normalizeIncoming = (id: string) => {
+        let s = id;
+        if (/^NS\d+\|/i.test(s)) {
+          const m = /^NS(\d+)\|[^|]*\|(.*)$/i.exec(s);
+          if (m) s = `ns=${m[1]};s=${m[2]}`;
+        }
+        return s;
+      };
+
       connection.on("value", (nodeId: string, value: any) => {
+        nodeId = normalizeIncoming(nodeId);
         const node = nodeIndex.get(nodeId);
         if (node) {
           node.value = value;
           setNodes(n => [...n]);
-          // do not force details panel on sim updates
+          // do not force details panel on sim updates; only refresh if it's currently selected
+          setSelectedNode(prev => (prev && prev.nodeId === nodeId ? { ...node } : prev));
         }
       });
 
       connection.on("externalWrite", (nodeId: string, value: any) => {
+        nodeId = normalizeIncoming(nodeId);
         const node = nodeIndex.get(nodeId);
         if (node) {
           node.value = value;
           setNodes(n => [...n]);
-          if (selectedNode?.nodeId === nodeId) setSelectedNode({ ...node });
+          setSelectedNode(prev => (prev && prev.nodeId === nodeId ? { ...node } : prev));
         }
       });
     };
@@ -120,6 +154,30 @@ export default function NodeBrowser() {
     };
     setNodes(updateNodes(nodes));
   };
+
+  // Fetch latest value for the selected node using the /api/read endpoint
+  useEffect(() => {
+    const nodeId = selectedNode?.nodeId;
+    if (!nodeId) return;
+    const controller = new AbortController();
+    const load = async () => {
+      try {
+        const res = await fetch(`${REST_BASE}/api/read?nodeId=${encodeURIComponent(nodeId)}`, { signal: controller.signal });
+        if (!res.ok) return; // leave as-is if not found
+        const data = await res.json();
+        setSelectedNode(prev => (prev && prev.nodeId === nodeId ? { ...prev, value: data.value } : prev));
+        // also reflect in the tree cache
+        const n = nodeIndex.get(nodeId);
+        if (n) {
+          n.value = data.value;
+          setNodes(v => [...v]);
+        }
+      } catch { /* ignore */ }
+    };
+    load();
+    return () => controller.abort();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedNode?.nodeId]);
 
   // Filtering
   const filtered = useMemo(() => {

@@ -66,6 +66,23 @@ namespace MTPSimulator.App.Core
 								}
 								return Microsoft.AspNetCore.Http.Results.Ok(new { success = ok });
 							});
+                            endpoints.MapGet("/api/read", async context =>
+                            {
+                                var nodeId = context.Request.Query["nodeId"].ToString();
+                                if (string.IsNullOrWhiteSpace(nodeId))
+                                {
+                                    await context.Response.WriteAsJsonAsync(new { error = "nodeId is required" });
+                                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                                    return;
+                                }
+                                if (_server.TryReadValue(nodeId, out var val))
+                                {
+                                    await context.Response.WriteAsJsonAsync(new { nodeId, value = val });
+                                    return;
+                                }
+                                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                                await context.Response.WriteAsJsonAsync(new { nodeId });
+                            });
 							endpoints.MapPost("/api/mtp/upload", async (HttpRequest request, IHubContext<ValuesHub> hub) =>
 							{
 								if (!request.HasFormContentType)
@@ -128,14 +145,20 @@ namespace MTPSimulator.App.Core
 
         private static List<VariableInfo> BuildSnapshot(MTPNode root)
 		{
-			var list = new List<VariableInfo>();
+            var list = new List<VariableInfo>();
 			void Walk(MTPNode n)
 			{
 				if (n.NodeClass == "Variable")
 				{
+                    var id = n.NodeId ?? n.DisplayName;
+                    // Ensure NodeId format matches server updates (e.g., "ns=2;s=R0001")
+                    if (!string.IsNullOrWhiteSpace(id) && !id.StartsWith("ns=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        id = $"ns=2;s={id}";
+                    }
 					list.Add(new VariableInfo
 					{
-						NodeId = n.NodeId ?? n.DisplayName,
+                        NodeId = id ?? string.Empty,
 						DisplayName = n.DisplayName,
                         DataType = n.DataType ?? string.Empty,
                         Value = null,
