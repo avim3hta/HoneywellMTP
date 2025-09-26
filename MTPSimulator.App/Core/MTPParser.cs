@@ -62,6 +62,8 @@ namespace MTPSimulator.App.Core
                 string identifier = string.Empty;
                 string dataType = "xs:string";
                 string nsIdx = "2";
+                byte? access = null;
+                string? description = null;
 
                 foreach (var a in ei.Elements().Where(n => n.Name.LocalName == "Attribute"))
                 {
@@ -82,6 +84,14 @@ namespace MTPSimulator.App.Core
                     {
                         dataType = aVal.Trim();
                     }
+                    else if (aName.Equals("Access", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(aVal))
+                    {
+                        if (byte.TryParse(aVal.Trim(), out var acc)) access = acc;
+                    }
+                    else if (aName.Equals("Description", StringComparison.OrdinalIgnoreCase))
+                    {
+                        description = aVal;
+                    }
                 }
 
                 if (string.IsNullOrWhiteSpace(identifier))
@@ -96,7 +106,10 @@ namespace MTPSimulator.App.Core
                     BrowseName = eiName,
                     NodeClass = "Variable",
                     DataType = dataType,
-                    NodeId = $"ns={nsIdx};s={identifier}"
+                    // Use plain identifier so server assigns our namespace index (NS2|String|R0001)
+                    NodeId = identifier,
+                    Access = access,
+                    Description = description
                 });
             }
 

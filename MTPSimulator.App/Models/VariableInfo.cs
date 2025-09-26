@@ -6,5 +6,7 @@ namespace MTPSimulator.App.Models
 		public string DisplayName { get; set; } = string.Empty;
 		public string DataType { get; set; } = string.Empty;
 		public object? Value { get; set; }
+		public byte? Access { get; set; }
+		public string? Description { get; set; }
 	}
 }

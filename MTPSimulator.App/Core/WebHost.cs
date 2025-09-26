@@ -52,11 +52,11 @@ namespace MTPSimulator.App.Core
 						}
 						app.UseRouting();
 						app.UseCors();
-						app.UseEndpoints(endpoints =>
+                        app.UseEndpoints(endpoints =>
 						{
 							endpoints.MapHub<ValuesHub>("/hub/values");
 							// Minimal REST endpoints
-							endpoints.MapGet("/api/variables", (Func<IEnumerable<VariableInfo>>)(() => VariableSnapshotProvider.Snapshot));
+                            endpoints.MapGet("/api/variables", (Func<IEnumerable<VariableInfo>>)(() => VariableSnapshotProvider.Snapshot));
 							endpoints.MapPost("/api/write", async (WriteRequest body, IHubContext<ValuesHub> hub) =>
 							{
 								var ok = _server.TryWriteValue(body.NodeId, body.Value ?? string.Empty);
@@ -79,13 +79,13 @@ namespace MTPSimulator.App.Core
 								{
 									await file.CopyToAsync(fs);
 								}
-								try
+                                try
 								{
 									var parser = new MTPParser();
 									var root = parser.ParseFile(temp);
 									_server.LoadNodes(root);
 									// refresh snapshot
-									var snapshot = BuildSnapshot(root);
+                                    var snapshot = BuildSnapshot(root);
 									VariableSnapshotProvider.Update(snapshot);
 									await hub.Clients.All.SendAsync("variables", snapshot);
 									return Microsoft.AspNetCore.Http.Results.Ok(new { success = true, count = snapshot.Count });
@@ -100,21 +100,33 @@ namespace MTPSimulator.App.Core
 				})
 				.Build();
 
-			_server.ValueChanged += async (nodeId, value) =>
+            _server.ValueChanged += async (nodeId, value) =>
 			{
 				if (_host == null) return;
 				try
 				{
 					var hub = _host.Services.GetRequiredService<IHubContext<ValuesHub>>();
-					await hub.Clients.All.SendAsync("value", nodeId, value);
+                    await hub.Clients.All.SendAsync("value", nodeId, value);
 				}
 				catch { }
 			};
 
+            _server.ExternalValueWritten += async (nodeId, value) =>
+            {
+                if (_host == null) return;
+                try
+                {
+                    var hub = _host.Services.GetRequiredService<IHubContext<ValuesHub>>();
+                    // dedicated event so the UI can only update details on external writes
+                    await hub.Clients.All.SendAsync("externalWrite", nodeId, value);
+                }
+                catch { }
+            };
+
 			await _host.StartAsync(ct).ConfigureAwait(false);
 		}
 
-		private static List<VariableInfo> BuildSnapshot(MTPNode root)
+        private static List<VariableInfo> BuildSnapshot(MTPNode root)
 		{
 			var list = new List<VariableInfo>();
 			void Walk(MTPNode n)
@@ -125,8 +137,10 @@ namespace MTPSimulator.App.Core
 					{
 						NodeId = n.NodeId ?? n.DisplayName,
 						DisplayName = n.DisplayName,
-						DataType = n.DataType ?? string.Empty,
-						Value = null
+                        DataType = n.DataType ?? string.Empty,
+                        Value = null,
+                        Access = n.Access,
+                        Description = n.Description
 					});
 				}
 				foreach (var c in n.Children)

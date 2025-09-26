@@ -21,6 +21,7 @@ namespace MTPSimulator.App.Core
 		private readonly ValueStore _store = new();
 		public string? BoundEndpointUrl { get; private set; }
 		public event Action<string, object>? ValueChanged;
+		public event Action<string, object>? ExternalValueWritten;
 
 		public OPCUAServer()
 		{
@@ -138,7 +139,7 @@ namespace MTPSimulator.App.Core
 				};
 				_nodeManager.ExternalWrite += (nodeId, value) =>
 				{
-					try { _store.Upsert(nodeId, value); ValueChanged?.Invoke(nodeId, value); } catch { }
+					try { _store.Upsert(nodeId, value); ValueChanged?.Invoke(nodeId, value); ExternalValueWritten?.Invoke(nodeId, value); } catch { }
 				};
 			}
 			_simulation.Start();
@@ -426,8 +427,8 @@ namespace MTPSimulator.App.Core
 					NodeId = nodeId,
 					DataType = dataTypeId,
 					ValueRank = ValueRanks.Scalar,
-					AccessLevel = AccessLevels.CurrentReadOrWrite,
-					UserAccessLevel = AccessLevels.CurrentReadOrWrite,
+					AccessLevel = MapAccess(node.Access),
+					UserAccessLevel = MapAccess(node.Access),
 					Historizing = false,
 					Value = defaultValue,
 					TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
@@ -560,7 +561,7 @@ namespace MTPSimulator.App.Core
 			return t.ToLowerInvariant() switch
 			{
 				"bool" or "boolean" => false,
-				"string" => string.Empty,
+				"string" or "normalizedstring" or "token" => string.Empty,
 				"byte" => (byte)0,
 				"sbyte" => (sbyte)0,
 				"short" or "int16" => (short)0,
@@ -575,6 +576,17 @@ namespace MTPSimulator.App.Core
 				"decimal" => 0d, // map decimal to Double for simplicity
 				"anyuri" or "qname" => string.Empty,
 				_ => 0d
+			};
+		}
+
+		private static byte MapAccess(byte? access)
+		{
+			return access switch
+			{
+				1 => AccessLevels.CurrentRead,
+				2 => AccessLevels.CurrentWrite, // write only
+				3 => AccessLevels.CurrentReadOrWrite,
+				_ => AccessLevels.CurrentReadOrWrite
 			};
 		}
 
