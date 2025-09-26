@@ -50,7 +50,7 @@ export default function NodeBrowser() {
 
     const fetchVariables = async () => {
       const res = await fetch(`${REST_BASE}/api/variables`);
-      const vars: { nodeId: string; displayName: string; dataType: string; value: any }[] = await res.json();
+      const vars: { nodeId: string; displayName: string; dataType: string; value: any, access?: number, description?: string }[] = await res.json();
       // flat list -> simple tree (group by first path segment)
       const tree: TreeNode[] = [
         {
@@ -79,6 +79,15 @@ export default function NodeBrowser() {
         .build();
       await connection.start();
       connection.on("value", (nodeId: string, value: any) => {
+        const node = nodeIndex.get(nodeId);
+        if (node) {
+          node.value = value;
+          setNodes(n => [...n]);
+          // do not force details panel on sim updates
+        }
+      });
+
+      connection.on("externalWrite", (nodeId: string, value: any) => {
         const node = nodeIndex.get(nodeId);
         if (node) {
           node.value = value;
