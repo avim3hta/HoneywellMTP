@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import Home from "./pages/Home";
-import MTPLoader from "./pages/MTPLoader";
 import NodeBrowser from "./pages/NodeBrowser";
 import SimulationControl from "./pages/SimulationControl";
 import Settings from "./pages/Settings";
@@ -22,7 +21,6 @@ const App = () => (
         <Layout>
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/mtp-loader" element={<MTPLoader />} />
             <Route path="/node-browser" element={<NodeBrowser />} />
             <Route path="/simulation" element={<SimulationControl />} />
             <Route path="/settings" element={<Settings />} />

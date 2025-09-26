@@ -1,64 +1,96 @@
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
   Server, 
-  FileText, 
   Network, 
   Play, 
   TrendingUp,
   Clock,
-  Users,
   CheckCircle2
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import * as signalR from "@microsoft/signalr";
+
+const REST_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5288";
+const HUB_URL = `${REST_BASE}/hub/values`;
 
 export default function Home() {
-  const stats = [
+  const [connected, setConnected] = useState(false);
+  const [variablesCount, setVariablesCount] = useState(0);
+  const [lastEvent, setLastEvent] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    // Probe REST
+    fetch(`${REST_BASE}/api/variables`)
+      .then(async r => {
+        if (!r.ok) throw new Error("bad status");
+        const vars = await r.json();
+        if (!cancelled) {
+          setConnected(true);
+          setVariablesCount(Array.isArray(vars) ? vars.length : 0);
+          setLastEvent("Variables fetched");
+        }
+      })
+      .catch(() => setConnected(false));
+
+    // Connect to hub for live heartbeat
+    const conn = new signalR.HubConnectionBuilder()
+      .withUrl(HUB_URL)
+      .withAutomaticReconnect()
+      .build();
+    conn
+      .start()
+      .then(() => setConnected(true))
+      .catch(() => {});
+    conn.on("value", (_nodeId: string) => {
+      setConnected(true);
+      setLastEvent("Live update received");
+    });
+
+    return () => {
+      cancelled = true;
+      try { conn.stop(); } catch { }
+    };
+  }, []);
+
+  const stats = useMemo(() => ([
     { 
       title: "Server Status", 
-      value: "Stopped", 
+      value: connected ? "Connected" : "Stopped", 
       icon: Server, 
-      status: "stopped" 
-    },
-    { 
-      title: "Loaded MTP Files", 
-      value: "0", 
-      icon: FileText, 
-      status: "neutral" 
+      status: connected ? "running" : "stopped" 
     },
     { 
       title: "Active Nodes", 
-      value: "0", 
+      value: String(variablesCount), 
       icon: Network, 
-      status: "neutral" 
+      status: variablesCount > 0 ? "running" : "neutral" 
     },
     { 
       title: "Running Simulations", 
-      value: "0", 
+      value: connected ? "1" : "0", 
       icon: TrendingUp, 
-      status: "neutral" 
+      status: connected ? "running" : "neutral" 
     }
-  ];
+  ]), [connected, variablesCount]);
 
-  const recentActivities = [
-    { time: "10:30", action: "System started", status: "info" },
-    { time: "10:29", action: "Configuration loaded", status: "success" },
-    { time: "10:28", action: "OPC UA server initialized", status: "info" }
-  ];
+  const recentActivities = useMemo(() => {
+    const now = new Date();
+    const t = now.toTimeString().slice(0,5);
+    return [
+      { time: t, action: connected ? (lastEvent ?? "Connected to bridge") : "Disconnected", status: connected ? "success" : "info" }
+    ];
+  }, [connected, lastEvent]);
 
   const quickActions = [
-    { 
-      title: "Load MTP File", 
-      description: "Upload and parse a new MTP XML file",
-      icon: FileText,
-      path: "/mtp-loader",
-      primary: true 
-    },
     { 
       title: "Browse Nodes", 
       description: "Explore OPC UA node structure",
       icon: Network,
-      path: "/node-browser" 
+      path: "/node-browser",
+      primary: true
     },
     { 
       title: "Start Simulation", 

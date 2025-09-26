@@ -27,7 +27,7 @@
                         <DataGridTextColumn Binding="{Binding NodeId}" Header="NodeId" Width="*"/>
                         <DataGridTextColumn Binding="{Binding DisplayName}" Header="Name" Width="2*"/>
                         <DataGridTextColumn Binding="{Binding DataType}" Header="Type" Width="*"/>
-                        <DataGridTextColumn Binding="{Binding Value}" Header="Value" Width="2*"/>
+                        <DataGridTextColumn Binding="{Binding Value, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Header="Value" Width="2*"/>
                     </DataGrid.Columns>
                 </DataGrid>
             </GroupBox>

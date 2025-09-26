@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import * as signalR from "@microsoft/signalr";
 import { 
   Network, 
   ChevronRight, 
@@ -23,70 +25,77 @@ interface TreeNode {
   expanded?: boolean;
 }
 
-const mockNodes: TreeNode[] = [
-  {
-    id: "1",
-    name: "Production Line A",
-    nodeId: "ns=2;s=ProductionLineA",
-    dataType: "Object",
-    value: "",
-    expanded: true,
-    children: [
-      {
-        id: "1.1",
-        name: "Temperature Control",
-        nodeId: "ns=2;s=ProductionLineA.TempControl",
-        dataType: "Object", 
-        value: "",
-        expanded: true,
-        children: [
-          {
-            id: "1.1.1",
-            name: "Current Temperature",
-            nodeId: "ns=2;s=ProductionLineA.TempControl.Current",
-            dataType: "Double",
-            value: 45.2
-          },
-          {
-            id: "1.1.2", 
-            name: "Setpoint",
-            nodeId: "ns=2;s=ProductionLineA.TempControl.Setpoint",
-            dataType: "Double",
-            value: 50.0
-          }
-        ]
-      },
-      {
-        id: "1.2",
-        name: "Motor Control",
-        nodeId: "ns=2;s=ProductionLineA.MotorControl", 
-        dataType: "Object",
-        value: "",
-        children: [
-          {
-            id: "1.2.1",
-            name: "Speed",
-            nodeId: "ns=2;s=ProductionLineA.MotorControl.Speed",
-            dataType: "Int32",
-            value: 1500
-          },
-          {
-            id: "1.2.2",
-            name: "Running",
-            nodeId: "ns=2;s=ProductionLineA.MotorControl.Running", 
-            dataType: "Boolean",
-            value: true
-          }
-        ]
-      }
-    ]
-  }
-];
+const REST_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5288";
+const HUB_URL = `${REST_BASE}/hub/values`;
 
 export default function NodeBrowser() {
-  const [nodes, setNodes] = useState<TreeNode[]>(mockNodes);
+  const [nodes, setNodes] = useState<TreeNode[]>([]);
   const [selectedNode, setSelectedNode] = useState<TreeNode | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [dataTypeFilter, setDataTypeFilter] = useState<string>("All");
+
+  // build index for fast updates
+  const nodeIndex = useMemo(() => new Map<string, TreeNode>(), [nodes]);
+  useEffect(() => {
+    nodeIndex.clear();
+    const walk = (n: TreeNode) => {
+      nodeIndex.set(n.nodeId, n);
+      n.children?.forEach(walk);
+    };
+    nodes.forEach(walk);
+  }, [nodes]);
+
+  useEffect(() => {
+    let connection: signalR.HubConnection | null = null;
+
+    const fetchVariables = async () => {
+      const res = await fetch(`${REST_BASE}/api/variables`);
+      const vars: { nodeId: string; displayName: string; dataType: string; value: any }[] = await res.json();
+      // flat list -> simple tree (group by first path segment)
+      const tree: TreeNode[] = [
+        {
+          id: "root",
+          name: "MTP",
+          nodeId: "MTP",
+          dataType: "Folder",
+          value: "",
+          expanded: true,
+          children: vars.map((v, i) => ({
+            id: `${i}`,
+            name: v.displayName,
+            nodeId: v.nodeId,
+            dataType: v.dataType,
+            value: v.value ?? ""
+          }))
+        }
+      ];
+      setNodes(tree);
+    };
+
+    const startHub = async () => {
+      connection = new signalR.HubConnectionBuilder()
+        .withUrl(HUB_URL)
+        .withAutomaticReconnect()
+        .build();
+      await connection.start();
+      connection.on("value", (nodeId: string, value: any) => {
+        const node = nodeIndex.get(nodeId);
+        if (node) {
+          node.value = value;
+          setNodes(n => [...n]);
+          if (selectedNode?.nodeId === nodeId) setSelectedNode({ ...node });
+        }
+      });
+    };
+
+    fetchVariables().catch(console.error);
+    startHub().catch(console.error);
+
+    return () => {
+      if (connection) connection.stop().catch(() => {});
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleNodeExpansion = (nodeId: string) => {
     const updateNodes = (nodes: TreeNode[]): TreeNode[] => {
@@ -102,6 +111,32 @@ export default function NodeBrowser() {
     };
     setNodes(updateNodes(nodes));
   };
+
+  // Filtering
+  const filtered = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    const wanted = dataTypeFilter.toLowerCase();
+
+    const matches = (n: TreeNode): boolean => {
+      const byTerm = term.length === 0 || n.name.toLowerCase().includes(term) || n.nodeId.toLowerCase().includes(term);
+      if (n.children && n.children.length > 0) return byTerm; // don't type-filter folders
+      const byType = wanted === "all" || (n.dataType?.toLowerCase?.() === wanted);
+      return byTerm && byType;
+    };
+
+    const filterTree = (nodes: TreeNode[]): TreeNode[] =>
+      nodes.map(n => {
+        const kids = n.children ? filterTree(n.children) : undefined;
+        const selfOk = matches(n);
+        const anyKid = kids && kids.length > 0;
+        if (selfOk || anyKid) {
+          return { ...n, children: kids };
+        }
+        return null as any;
+      }).filter(Boolean);
+
+    return filterTree(nodes);
+  }, [nodes, searchTerm, dataTypeFilter]);
 
   const renderTreeNode = (node: TreeNode, level: number = 0) => {
     const hasChildren = node.children && node.children.length > 0;
@@ -176,14 +211,27 @@ export default function NodeBrowser() {
                   className="pl-10"
                 />
               </div>
-              <Button variant="outline" size="sm">
-                <Filter className="h-4 w-4" />
-              </Button>
+              <Select value={dataTypeFilter} onValueChange={setDataTypeFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="All types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>Data Type</SelectLabel>
+                    <SelectItem value="All">All</SelectItem>
+                    <SelectItem value="Boolean">Boolean</SelectItem>
+                    <SelectItem value="Int32">Int32</SelectItem>
+                    <SelectItem value="Float">Float</SelectItem>
+                    <SelectItem value="Double">Double</SelectItem>
+                    <SelectItem value="String">String</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
             </div>
           </CardHeader>
           <CardContent className="max-h-96 overflow-y-auto">
             <div className="space-y-1">
-              {nodes.map(node => renderTreeNode(node))}
+              {filtered.map(node => renderTreeNode(node))}
             </div>
           </CardContent>
         </Card>

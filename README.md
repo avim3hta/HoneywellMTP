@@ -57,6 +57,14 @@ Run
 - Click "Load MTP..." to select your MTP XML.
 - Click "Start Server" to host the address space.
 
+MTP Inputs (MTP-MAHE folder)
+----------------------------
+- You can place your vendor MTP in `MTP-MAHE` or anywhere on disk.
+- Supported formats:
+  - `.mtp` / `.amlx` (AutomationML container ZIP)
+  - `.aml` / `.xml`
+- The parser scans the AMLX archive for `.aml`/`.xml` and extracts `<Variable .../>` and AML `<Attribute ...><Value>...</Value></Attribute>` as scalar variables. Extend as needed for full mapping.
+
 Test with UaExpert
 ------------------
 1) Open UaExpert and add a new server connection.

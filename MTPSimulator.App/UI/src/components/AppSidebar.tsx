@@ -1,7 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { 
   Home, 
-  Upload, 
   Network, 
   Play, 
   Settings,
@@ -21,7 +20,6 @@ import {
 
 const navigationItems = [
   { title: "Home", url: "/", icon: Home },
-  { title: "MTP Loader", url: "/mtp-loader", icon: Upload },
   { title: "Node Browser", url: "/node-browser", icon: Network },
   { title: "Simulation Control", url: "/simulation", icon: Play },
   { title: "Settings", url: "/settings", icon: Settings },
