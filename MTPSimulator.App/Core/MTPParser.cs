@@ -50,9 +50,64 @@ namespace MTPSimulator.App.Core
                 });
             }
 
-            // AutomationML Attribute fallback
+            // Aggregate OPC UA Items from ExternalInterface blocks (preferred mapping)
+            var extIfaces = xdoc
+                .Descendants()
+                .Where(e => e.Name.LocalName == "ExternalInterface")
+                .Where(e => ((string?)e.Attribute("RefBaseClassPath"))?.Contains("OPCUAItem", StringComparison.OrdinalIgnoreCase) == true);
+
+            foreach (var ei in extIfaces)
+            {
+                var eiName = (string?)ei.Attribute("Name") ?? "Item";
+                string identifier = string.Empty;
+                string dataType = "xs:string";
+                string nsIdx = "2";
+
+                foreach (var a in ei.Elements().Where(n => n.Name.LocalName == "Attribute"))
+                {
+                    var aName = (string?)a.Attribute("Name") ?? string.Empty;
+                    var aDt = (string?)a.Attribute("AttributeDataType") ?? (string?)a.Attribute("DataType");
+                    var aVal = a.Elements().FirstOrDefault(n => n.Name.LocalName == "Value")?.Value;
+
+                    if (aName.Equals("Identifier", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(aVal))
+                    {
+                        identifier = aVal.Trim();
+                        if (!string.IsNullOrWhiteSpace(aDt)) dataType = aDt;
+                    }
+                    else if (aName.Equals("Namespace", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(aVal))
+                    {
+                        nsIdx = aVal.Trim();
+                    }
+                    else if (aName.Equals("DataType", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(aVal))
+                    {
+                        dataType = aVal.Trim();
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(identifier))
+                {
+                    // If no Identifier provided, fallback to the EI name
+                    identifier = eiName;
+                }
+
+                root.Children.Add(new MTPNode
+                {
+                    DisplayName = eiName,
+                    BrowseName = eiName,
+                    NodeClass = "Variable",
+                    DataType = dataType,
+                    NodeId = $"ns={nsIdx};s={identifier}"
+                });
+            }
+
+            // AutomationML Attribute fallback (skip attributes that belong to OPC UA Items we already aggregated)
             foreach (var attr in xdoc.Descendants().Where(e => e.Name.LocalName == "Attribute"))
             {
+                if (attr.Parent != null && attr.Parent.Name.LocalName == "ExternalInterface")
+                {
+                    var rb = (string?)attr.Parent.Attribute("RefBaseClassPath") ?? string.Empty;
+                    if (rb.IndexOf("OPCUAItem", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+                }
                 var name = (string?)attr.Attribute("Name");
                 if (string.IsNullOrWhiteSpace(name)) continue;
 

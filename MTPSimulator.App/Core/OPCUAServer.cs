@@ -389,17 +389,34 @@ namespace MTPSimulator.App.Core
 
 			if (node.NodeClass == "Variable")
 			{
-				// Create a consistent NodeId in our namespace
-				var nodeId = !string.IsNullOrWhiteSpace(node.NodeId) 
-					? new NodeId(node.BrowseName, NamespaceIndexes[0])  // Use BrowseName for consistency
-					: new NodeId(Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture), NamespaceIndexes[0]);
+				// Create NodeId: prefer provided identifier (e.g., "R0001").
+				NodeId nodeId;
+				if (!string.IsNullOrWhiteSpace(node.NodeId))
+				{
+					// If it's a full UA NodeId string (e.g., "ns=2;s=R0001"), parse it; otherwise make a string NodeId in our namespace
+					try
+					{
+						nodeId = NodeId.Parse(node.NodeId);
+					}
+					catch
+					{
+						nodeId = new NodeId(node.NodeId, NamespaceIndexes[0]);
+					}
+				}
+				else
+				{
+					// Fallbacks: use DisplayName/BrowseName, else GUID
+					var idText = !string.IsNullOrWhiteSpace(node.DisplayName) ? node.DisplayName :
+						(!string.IsNullOrWhiteSpace(node.BrowseName) ? node.BrowseName : Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture));
+					nodeId = new NodeId(idText, NamespaceIndexes[0]);
+				}
 
 				Console.WriteLine($"SimulatorNodeManager: Adding variable '{node.DisplayName}' with NodeId '{nodeId}'");
 				
 				var varState = new BaseDataVariableState(parent)
 				{
-					BrowseName = new QualifiedName(node.BrowseName, NamespaceIndexes[0]),
-					DisplayName = node.DisplayName,
+					BrowseName = new QualifiedName(!string.IsNullOrWhiteSpace(node.BrowseName) ? node.BrowseName : (node.DisplayName ?? "Var"), NamespaceIndexes[0]),
+					DisplayName = !string.IsNullOrWhiteSpace(node.DisplayName) ? node.DisplayName : node.BrowseName,
 					Description = null,
 					NodeId = nodeId,
 					DataType = GetDataTypeId(node.DataType),
@@ -453,15 +470,56 @@ namespace MTPSimulator.App.Core
 
 		private static NodeId GetDataTypeId(string? dt)
 		{
-			return dt switch
+			if (string.IsNullOrWhiteSpace(dt)) return DataTypeIds.Double;
+			var t = dt.Trim();
+			// strip common XML schema prefixes like xs:
+			if (t.StartsWith("xs:", StringComparison.OrdinalIgnoreCase)) t = t.Substring(3);
+			switch (t.ToLowerInvariant())
 			{
-				"Boolean" => DataTypeIds.Boolean,
-				"Int32" => DataTypeIds.Int32,
-				"Float" => DataTypeIds.Float,
-				"Double" => DataTypeIds.Double,
-				"String" => DataTypeIds.String,
-				_ => DataTypeIds.Double
-			};
+				case "bool":
+				case "boolean":
+					return DataTypeIds.Boolean;
+				case "string":
+					return DataTypeIds.String;
+				case "byte":
+					return DataTypeIds.Byte;
+				case "sbyte":
+					return DataTypeIds.SByte;
+				case "short":
+				case "int16":
+					return DataTypeIds.Int16;
+				case "unsignedshort":
+				case "uint16":
+					return DataTypeIds.UInt16;
+				case "int":
+				case "integer":
+				case "int32":
+					return DataTypeIds.Int32;
+				case "unsignedint":
+				case "uint32":
+					return DataTypeIds.UInt32;
+				case "long":
+				case "int64":
+					return DataTypeIds.Int64;
+				case "unsignedlong":
+				case "uint64":
+					return DataTypeIds.UInt64;
+				case "float":
+					return DataTypeIds.Float;
+				case "double":
+					return DataTypeIds.Double;
+				case "datetime":
+				case "date":
+					return DataTypeIds.DateTime;
+				case "decimal":
+					// map decimal to Double for simplicity
+					return DataTypeIds.Double;
+				case "anyuri":
+				case "qname":
+					return DataTypeIds.String;
+				default:
+					return DataTypeIds.Double;
+			}
 		}
 
 		private static object GetDefaultValue(string? dt)
