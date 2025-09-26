@@ -59,7 +59,7 @@
           <InternalElement ID="3c2ed529-9cc7-4c5c-b9d8-8e956d1a2571" Name="OPC UA Server" RefBaseSystemUnitPath="MTPCommunicationSUCLib/ServerAssembly/OPCUAServer">
             <Attribute Name="Endpoint" Unit="" AttributeDataType="xs:string">
               <Description>Endpoint URL of the server - like 'opc.tcp://192.186.2.1:5555</Description>
-              <Value>opc.tcp://192.168.1.201:4840</Value>
+              <Value>opc.tcp://localhost:4840</Value>
             </Attribute>
             <ExternalInterface ID="91e8ab13-ffac-4135-878c-a46cb0a29bc9" Name="R0001" RefBaseClassPath="MTPCommunicationICLib/DataItem/OPCUAItem">
               <Attribute Name="Access" AttributeDataType="xs:byte">
