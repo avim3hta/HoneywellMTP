@@ -411,7 +411,12 @@ namespace MTPSimulator.App.Core
 					nodeId = new NodeId(idText, NamespaceIndexes[0]);
 				}
 
-				Console.WriteLine($"SimulatorNodeManager: Adding variable '{node.DisplayName}' with NodeId '{nodeId}'");
+				Console.WriteLine($"SimulatorNodeManager: Adding variable '{node.DisplayName}' with NodeId '{nodeId}', DataType: '{node.DataType}'");
+				
+				var dataTypeId = GetDataTypeId(node.DataType);
+				var defaultValue = GetDefaultValue(node.DataType);
+				
+				Console.WriteLine($"SimulatorNodeManager: Mapped DataType '{node.DataType}' -> OPC UA DataType '{dataTypeId}', DefaultValue: '{defaultValue}' ({defaultValue?.GetType().Name})");
 				
 				var varState = new BaseDataVariableState(parent)
 				{
@@ -419,12 +424,12 @@ namespace MTPSimulator.App.Core
 					DisplayName = !string.IsNullOrWhiteSpace(node.DisplayName) ? node.DisplayName : node.BrowseName,
 					Description = null,
 					NodeId = nodeId,
-					DataType = GetDataTypeId(node.DataType),
+					DataType = dataTypeId,
 					ValueRank = ValueRanks.Scalar,
 					AccessLevel = AccessLevels.CurrentReadOrWrite,
 					UserAccessLevel = AccessLevels.CurrentReadOrWrite,
 					Historizing = false,
-					Value = GetDefaultValue(node.DataType),
+					Value = defaultValue,
 					TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
 					ReferenceTypeId = ReferenceTypeIds.HasComponent
 				};
@@ -472,16 +477,22 @@ namespace MTPSimulator.App.Core
 		{
 			if (string.IsNullOrWhiteSpace(dt)) return DataTypeIds.Double;
 			var t = dt.Trim();
-			// strip common XML schema prefixes like xs:
+			
+			// strip common XML schema prefixes like xs:, xsd:
 			if (t.StartsWith("xs:", StringComparison.OrdinalIgnoreCase)) t = t.Substring(3);
+			if (t.StartsWith("xsd:", StringComparison.OrdinalIgnoreCase)) t = t.Substring(4);
+			
 			switch (t.ToLowerInvariant())
 			{
 				case "bool":
 				case "boolean":
 					return DataTypeIds.Boolean;
 				case "string":
+				case "normalizedstring":
+				case "token":
 					return DataTypeIds.String;
 				case "byte":
+				case "unsignedbyte":
 					return DataTypeIds.Byte;
 				case "sbyte":
 					return DataTypeIds.SByte;
@@ -497,6 +508,10 @@ namespace MTPSimulator.App.Core
 					return DataTypeIds.Int32;
 				case "unsignedint":
 				case "uint32":
+				case "positiveinteger":
+				case "nonpositiveinteger":
+				case "nonnegativeinteger":
+				case "negativeinteger":
 					return DataTypeIds.UInt32;
 				case "long":
 				case "int64":
@@ -505,32 +520,60 @@ namespace MTPSimulator.App.Core
 				case "uint64":
 					return DataTypeIds.UInt64;
 				case "float":
+				case "single":
 					return DataTypeIds.Float;
 				case "double":
 					return DataTypeIds.Double;
 				case "datetime":
 				case "date":
+				case "time":
+				case "gyear":
+				case "gmonth":
+				case "gday":
+				case "gyearmonth":
+				case "gmonthday":
+				case "duration":
 					return DataTypeIds.DateTime;
 				case "decimal":
 					// map decimal to Double for simplicity
 					return DataTypeIds.Double;
 				case "anyuri":
 				case "qname":
+				case "notation":
+				case "base64binary":
+				case "hexbinary":
 					return DataTypeIds.String;
 				default:
+					Console.WriteLine($"SimulatorNodeManager: WARNING - Unknown data type '{dt}', defaulting to Double");
 					return DataTypeIds.Double;
 			}
 		}
 
 		private static object GetDefaultValue(string? dt)
 		{
-			return dt switch
+			if (string.IsNullOrWhiteSpace(dt)) return 0d;
+			
+			var t = dt.Trim();
+			// strip common XML schema prefixes like xs:
+			if (t.StartsWith("xs:", StringComparison.OrdinalIgnoreCase)) t = t.Substring(3);
+			
+			return t.ToLowerInvariant() switch
 			{
-				"Boolean" => false,
-				"Int32" => 0,
-				"Float" => 0f,
-				"Double" => 0d,
-				"String" => string.Empty,
+				"bool" or "boolean" => false,
+				"string" => string.Empty,
+				"byte" => (byte)0,
+				"sbyte" => (sbyte)0,
+				"short" or "int16" => (short)0,
+				"unsignedshort" or "uint16" => (ushort)0,
+				"int" or "integer" or "int32" => 0,
+				"unsignedint" or "uint32" => (uint)0,
+				"long" or "int64" => 0L,
+				"unsignedlong" or "uint64" => (ulong)0,
+				"float" => 0f,
+				"double" => 0d,
+				"datetime" or "date" => DateTime.UtcNow,
+				"decimal" => 0d, // map decimal to Double for simplicity
+				"anyuri" or "qname" => string.Empty,
 				_ => 0d
 			};
 		}

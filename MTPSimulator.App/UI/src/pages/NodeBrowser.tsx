@@ -117,10 +117,58 @@ export default function NodeBrowser() {
     const term = searchTerm.trim().toLowerCase();
     const wanted = dataTypeFilter.toLowerCase();
 
+    const normalizeDataType = (dataType: string): string => {
+      if (!dataType) return "";
+      let normalized = dataType.toLowerCase().trim();
+      
+      // Remove XML schema prefixes
+      if (normalized.startsWith("xs:")) normalized = normalized.substring(3);
+      if (normalized.startsWith("xsd:")) normalized = normalized.substring(4);
+      
+      // Normalize common variations
+      switch (normalized) {
+        case "bool":
+        case "boolean":
+          return "boolean";
+        case "string":
+        case "normalizedstring":
+        case "token":
+          return "string";
+        case "int":
+        case "integer":
+        case "int32":
+          return "int32";
+        case "float":
+        case "single":
+          return "float";
+        case "double":
+          return "double";
+        case "byte":
+        case "unsignedbyte":
+          return "byte";
+        case "short":
+        case "int16":
+          return "int16";
+        case "long":
+        case "int64":
+          return "int64";
+        case "datetime":
+        case "date":
+        case "time":
+          return "datetime";
+        default:
+          return normalized;
+      }
+    };
+
     const matches = (n: TreeNode): boolean => {
       const byTerm = term.length === 0 || n.name.toLowerCase().includes(term) || n.nodeId.toLowerCase().includes(term);
       if (n.children && n.children.length > 0) return byTerm; // don't type-filter folders
-      const byType = wanted === "all" || (n.dataType?.toLowerCase?.() === wanted);
+      
+      const normalizedNodeType = normalizeDataType(n.dataType);
+      const normalizedWanted = normalizeDataType(wanted);
+      
+      const byType = wanted === "all" || normalizedNodeType === normalizedWanted;
       return byTerm && byType;
     };
 
@@ -220,10 +268,14 @@ export default function NodeBrowser() {
                     <SelectLabel>Data Type</SelectLabel>
                     <SelectItem value="All">All</SelectItem>
                     <SelectItem value="Boolean">Boolean</SelectItem>
+                    <SelectItem value="String">String</SelectItem>
                     <SelectItem value="Int32">Int32</SelectItem>
+                    <SelectItem value="Int16">Int16</SelectItem>
+                    <SelectItem value="Int64">Int64</SelectItem>
+                    <SelectItem value="Byte">Byte</SelectItem>
                     <SelectItem value="Float">Float</SelectItem>
                     <SelectItem value="Double">Double</SelectItem>
-                    <SelectItem value="String">String</SelectItem>
+                    <SelectItem value="DateTime">DateTime</SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>

@@ -6,7 +6,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import Home from "./pages/Home";
 import NodeBrowser from "./pages/NodeBrowser";
-import SimulationControl from "./pages/SimulationControl";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -22,7 +21,6 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/node-browser" element={<NodeBrowser />} />
-            <Route path="/simulation" element={<SimulationControl />} />
             <Route path="/settings" element={<Settings />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

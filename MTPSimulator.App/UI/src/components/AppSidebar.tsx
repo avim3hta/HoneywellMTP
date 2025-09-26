@@ -2,7 +2,6 @@ import { NavLink, useLocation } from "react-router-dom";
 import { 
   Home, 
   Network, 
-  Play, 
   Settings,
   Cpu 
 } from "lucide-react";
@@ -21,7 +20,6 @@ import {
 const navigationItems = [
   { title: "Home", url: "/", icon: Home },
   { title: "Node Browser", url: "/node-browser", icon: Network },
-  { title: "Simulation Control", url: "/simulation", icon: Play },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
